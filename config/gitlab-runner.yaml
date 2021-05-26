@@ -1,0 +1,13 @@
+apiVersion: apps.gitlab.com/v1beta2
+kind: Runner
+metadata:
+  name: gitlab-ploigos-runner
+spec:
+  gitlabUrl: 'https://gitlab.apps.tssc.rht-set.com/'
+  buildImage: 'ploigos/ploigos-tool-maven:v0.16.0'
+  token: gitlab-runner-secret
+  tags: openshift
+  config: gitlab-runner-ploigos-config-toml
+  envVars:
+    - name: REGISTER_RUN_UNTAGGED
+      value: "true"

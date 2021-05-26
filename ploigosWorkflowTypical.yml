@@ -1,0 +1,279 @@
+###########################################
+## Ploigos GitLab CI Workflow - Standard ##
+###########################################
+
+# Do not build tags, or the tag source step will rerun the pipeline
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - when: always
+
+# Checkout on branch/tag (instead of commit hash) to prevent detached head
+default:
+  before_script:
+    - 'git checkout $CI_COMMIT_REF_NAME'
+
+include:
+  ## TODO: Using variables in the 'include' is locked behind a (default off) feature flag -- see final comment of:
+  ##       https://gitlab.com/gitlab-org/gitlab/-/issues/24811
+  #  - remote: '$remote_url/-/raw/$gitlabLibraryVersion/var/ploigos_variables.yml'
+
+  # Ploigos + GitLab Runner variable setup
+  - remote: 'https://gitlab.apps.tssc.rht-set.com/ploigos/ploigos-gitlab-library/-/raw/main/var/ploigos_variables.yml'
+  - remote: 'https://gitlab.apps.tssc.rht-set.com/ploigos/ploigos-gitlab-library/-/raw/main/var/ploigos_gitlab_variables.yml'
+
+  # Templates
+  - remote: 'https://gitlab.apps.tssc.rht-set.com/ploigos/ploigos-gitlab-library/-/raw/main/templates/ploigos_step_runner.yml'
+  - remote: 'https://gitlab.apps.tssc.rht-set.com/ploigos/ploigos-gitlab-library/-/raw/main/templates/setup_workflow_step_runner.yml'
+  - remote: 'https://gitlab.apps.tssc.rht-set.com/ploigos/ploigos-gitlab-library/-/raw/main/templates/setup_pgp_keys.yml'
+
+# These stages come from the includes above
+stages:
+  # setup
+  - setup:setup_workflow_step_runner
+  - setup:setup_pgp_keys
+  # ci
+  - ci:generate_metadata
+  - ci:tag_source
+  - ci:run_unit_tests
+  - ci:package_application
+  - ci:static_code_analysis
+  - ci:push_application
+  - ci:create_container_image
+  - ci:static_image_scan
+  - ci:push_container
+  # dev
+  - dev:deploy
+  - dev:run_user_acceptance_tests
+  # test
+  - test:deploy
+  - test:run_user_acceptance_tests
+  # prod
+  - prod:deploy
+  # report
+  - report
+
+###########
+## SETUP ##
+###########
+
+## TODO: Relying on first step to know if the pipeline should kick off or not, because the rules
+##       syntax has multiple issues, e.g.: can't merge rules between job & its 'extends'; rules not
+##       defaulting back to "when: on_success" if all other rule matches fail. See NOTE at top of
+##       file. These rules lives in the job being extended here.
+##
+## Cases where pipeline should not be run:
+##   1. When a tag is pushed. If tag pushes are run, then the tag_source step in PSR will cause the
+##      pipeline to be run twice for the same commit.
+##   2. When a merge request is opened. A merge request can only be opened for a commit that has
+##      been pushed -- which means that the pipeline will have already run for that commit.
+setup_workflow_step_runner:
+  extends:
+    - .setup_workflow_step_runner
+  stage: setup:setup_workflow_step_runner
+  image: '$workflowWorkerImageDefault'
+
+setup_pgp_keys:
+  extends:
+    - .setup_pgp_keys
+  stage: setup:setup_pgp_keys
+  dependencies:
+    - setup_workflow_step_runner
+  image: '$workflowWorkerImageDefault'
+
+########
+## CI ##
+########
+
+generate_metadata:
+  extends:
+    - .ploigos_step_runner
+  stage: ci:generate_metadata
+  dependencies:
+    - setup_pgp_keys
+    - setup_workflow_step_runner
+  image: '$workflowWorkerImageDefault'
+  variables:
+    stepName: 'generate-metadata'
+
+tag_source:
+  extends:
+    - .ploigos_step_runner
+  stage: ci:tag_source
+  dependencies:
+    - generate_metadata
+  image: '$workflowWorkerImageDefault'
+  variables:
+    stepName: 'tag-source'
+
+run_unit_tests:
+  extends:
+    - .ploigos_step_runner
+  stage: ci:run_unit_tests
+  dependencies:
+    - tag_source
+  image: '$workflowWorkerImageUnitTest'
+  variables:
+    stepName: 'unit-test'
+
+package_application:
+  extends:
+    - .ploigos_step_runner
+  stage: ci:package_application
+  dependencies:
+    - run_unit_tests
+  image: '$workflowWorkerImagePackage'
+  variables:
+    stepName: 'package'
+
+static_code_analysis:
+  extends:
+    - .ploigos_step_runner
+  stage: ci:static_code_analysis
+  dependencies:
+    - package_application
+  image: '$workflowWorkerImageStaticCodeAnalysis'
+  variables:
+    stepName: 'static-code-analysis'
+
+push_application:
+  extends:
+    - .ploigos_step_runner
+  stage: ci:push_application
+  dependencies:
+    - static_code_analysis
+  image: '$workflowWorkerImagePushArtifacts'
+  variables:
+    stepName: 'push-artifacts'
+
+create_container_image:
+  extends:
+    - .ploigos_step_runner
+  stage: ci:create_container_image
+  dependencies:
+    - push_application
+  image: '$workflowWorkerImageContainerOperations'
+  variables:
+    stepName: 'create-container-image'
+
+static_image_scan:vulnerability:
+  extends:
+    - .ploigos_step_runner
+  stage: ci:static_image_scan
+  dependencies:
+    - create_container_image
+  image: '$workflowWorkerImageContainerImageStaticVulnerabilityScan'
+  variables:
+    stepName: 'container-image-static-vulnerability-scan'
+
+push_container:
+  extends:
+    - .ploigos_step_runner
+  stage: ci:push_container
+  dependencies:
+    - static_image_scan:vulnerability
+  image: '$workflowWorkerImageContainerOperations'
+  variables:
+    stepName: 'push-container-image'
+
+#########
+## DEV ##
+#########
+
+deploy_to_dev:
+  extends:
+    - .ploigos_step_runner
+  rules:
+    - if: $CI_COMMIT_REF_NAME =~ /^feature\/.+$|^PR-.+$/
+#    - if: $CI_COMMIT_REF_NAME =~ /$devGitRefPatterns/
+      when: on_success
+  stage: dev:deploy
+  dependencies:
+    - push_container
+  image: '$workflowWorkerImageDeploy'
+  variables:
+    stepName: 'deploy'
+    environment: $envNameDev
+
+run_user_acceptance_tests_dev:
+  extends:
+    - .ploigos_step_runner
+  rules:
+    - if: $CI_COMMIT_REF_NAME =~ /^feature\/.+$|^PR-.+$/
+#    - if: $CI_COMMIT_REF_NAME =~ /$devGitRefPatterns/
+      when: on_success
+  stage: dev:run_user_acceptance_tests
+  dependencies:
+    - deploy_to_dev
+  image: '$workflowWorkerImageUAT'
+  variables:
+    stepName: 'uat'
+    environment: $envNameDev
+
+##########
+## TEST ##
+##########
+
+deploy_to_test:
+  extends:
+    - .ploigos_step_runner
+  rules:
+    - if: $CI_COMMIT_REF_NAME =~ /^main$/
+#    - if: $CI_COMMIT_REF_NAME =~ /$releaseGitRefPatterns/
+      when: on_success
+  stage: test:deploy
+  dependencies:
+    - push_container
+  image: '$workflowWorkerImageDeploy'
+  variables:
+    stepName: 'deploy'
+    environment: $envNameTest
+
+run_user_acceptance_tests_test:
+  extends:
+    - .ploigos_step_runner
+  rules:
+    - if: $CI_COMMIT_REF_NAME =~ /^main$/
+#    - if: $CI_COMMIT_REF_NAME =~ /$releaseGitRefPatterns/
+      when: on_success
+  stage: test:run_user_acceptance_tests
+  dependencies:
+    - deploy_to_test
+  image: '$workflowWorkerImageUAT'
+  variables:
+    stepName: 'uat'
+    environment: $envNameTest
+
+##########
+## PROD ##
+##########
+
+deploy_to_prod:
+  extends:
+    - .ploigos_step_runner
+  stage: prod:deploy
+  rules:
+    - if: $CI_COMMIT_REF_NAME =~ /^main$/
+#    - if: $CI_COMMIT_REF_NAME =~ /$releaseGitRefPatterns/
+      when: on_success
+  dependencies:
+    - push_container
+  image: '$workflowWorkerImageDeploy'
+  variables:
+    stepName: 'deploy'
+    environment: $envNameProd
+
+############
+## REPORT ##
+############
+
+report:
+  extends:
+    - .ploigos_step_runner
+  stage: report
+  rules:
+    - when: always
+  image: '$workflowWorkerImageDefault'
+  variables:
+    stepName: 'report'

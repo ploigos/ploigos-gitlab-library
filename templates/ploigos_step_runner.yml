@@ -1,0 +1,67 @@
+## Variables ##
+#
+# stepRunnerConfigDir:
+#   type: string
+#   description:
+#     Required.
+#     Path to the Step Runner configuration to pass to the
+#     Workflow Step Runner when running workflow steps.
+#
+# stepName:
+#   type: string
+#   description: |
+#     Required.
+#     Name of the Workflow step for the Workflow Step Runner to run.
+#
+# environment:
+#   type: string
+#   description: |
+#     Optional.
+#     Name of the environment to target when running the given step.
+#
+#     This should be equal to one of the environment names used in one or more of the
+#     Step Runner configuration files in the given Step Runner configuration directory.
+
+.ploigos_step_runner:
+  rules:
+    # Do not build tags, or the tag source step will rerun the pipeline
+    - if: $CI_COMMIT_TAG
+      when: never
+    # Do not build on merge requests; pipeline will have already been run for this commit
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - when: on_success
+  tags:
+    - ploigos
+  retry:
+    max: 2
+    when:
+      - scheduler_failure
+  ## TODO: Passing artifacts manually until GitLab Runner 13.12 is available for OCP
+  ##       In GitLab Runner 13.12, the builds dir can be a PVC; before that, it cannot
+  ##       (config.toml load will error out if you try)
+  ##       Once the builds dir is in a PVC, these artifacts should be unnecessary
+  artifacts:
+    paths:
+      - step-runner-working/
+      - target/
+    # The following is needed for the 'report' stage to publish results when the pipeline fails
+    when: always
+  script:
+    - |
+      #!/bin/sh
+
+      if [ "${verbose}" == "true" ]; then
+        set -x;
+      else
+        set +x;
+      fi
+
+      set -eu -o pipefail
+
+      source ${home}/${venvName}/bin/activate
+
+      psr \
+        --config ${stepRunnerConfigDir} \
+        --step "${stepName}" \
+        --environment "${environment}"

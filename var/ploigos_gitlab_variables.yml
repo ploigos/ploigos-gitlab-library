@@ -1,0 +1,32 @@
+## This file contains variables specific to the implementation of Ploigos on the GitLab CI platform.
+## There are two scenarios in which variables will end up here:
+##
+##   1. The variable cannot be defined uniformly across various CI platforms. For example, the
+##      defined workspace of `/home/ploigos` is hard-coded in multiple places as a `mountPath` in
+##      the Tekton Helm chart, but the Jenkins library holds that value for reuse in the variable
+##      `WORKFLOW_WORKER_WORKSPACE_HOME_PATH`. For the GitLab CI Runner, the `home` variable is
+##      used to match the name of the workspace defined for the Tekton workflow.
+##
+##   2. The variable is specific to GitLab. For example, `GIT_CLONE_PATH` is a GitLab CI variable
+##      that determines what directory to checkout to when running a specific job in a pipeline.
+##      This ensures that the absolute file path for Ploigos working files within any given pipeline
+##      will be the same when moving between different CI Runners.
+
+variables:
+  # Clone git repository to a directory that is guaranteed be the same across every job within a
+  # single pipeline, but unique to each individual pipeline
+  GIT_CLONE_PATH: '$CI_BUILDS_DIR/$CI_PROJECT_NAME-$CI_COMMIT_BRANCH-$CI_PIPELINE_ID'
+
+  # The 'environment' variable is optional for the Ploigos Step Runner (i.e., the `psr` command),
+  # and should evaluate to a blank value when not provided. While this works for other CI platforms,
+  # the GitLab CI Runner throws an 'unbound variable' error for any undefined variable. To force
+  # optional values to evaluate as blank, they must be initialized with an empty value in advance.
+  environment: ''
+
+  # Workspace for the container users home directory.
+  # Important because the home directory is where the python virtual environment will be setup
+  # to be shared with future steps.
+  home: '/home/ploigos'
+
+  # Name of the virtual environment to set up in the given home workspace.
+  venvName: 'venv-ploigos'

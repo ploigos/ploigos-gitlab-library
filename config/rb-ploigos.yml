@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: gitlab-runner-sa-ploigos-run-as-user-1001
+  namespace: gitlab-runner
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ploigos-run-as-user-1001
+subjects:
+- kind: ServiceAccount
+  name: gitlab-runner-sa

@@ -1,0 +1,89 @@
+# Variables that must be defined when importing script:
+#   - workflowWorkerImageDefault
+#   - venvName
+#   - verbose
+#   - stepRunnerUpdateLibrary
+#   - stepRunnerLibSourceUrl
+#   - stepRunnerLibExtraIndexUrl
+#   - stepRunnerLibVersion
+#   - stepRunnerPackageName
+.setup_workflow_step_runner:
+  tags:
+    - ploigos
+  script:
+    # TODO: Determine if there is a more effective way to add blank lines, for readability:
+    # https://docs.gitlab.com/ee/ci/yaml/script.html
+    - |
+      #!/bin/bash
+
+      if [ "$verbose" == "true" ]; then
+        set -x;
+      else
+        set +x;
+      fi
+
+      set -eu -o pipefail
+
+      #if [ "${PAUSE_FOR_DEBUG_BEFORE_STEP_RUN}" == "true" ]; then
+      #  echo "********************"
+      #  echo "* PAUSED FOR DEBUG *"
+      #  echo "********************"
+      #  echo "To continue:"
+      #  echo "> touch ${home}/workflow-continue"
+      #  while [ ! -f ${home}/workflow-continue ]; do
+      #    sleep 2
+      #  done
+      #  rm -f ${home}/workflow-continue
+      #fi
+
+      ## TODO: Temporary hack due to GitLab CI's inability to dynamically generate PVCs
+      ##       https://gitlab.com/gitlab-org/gitlab-runner/-/issues/21308
+      ## NOTE: rm .* fails to remove `.` and `..`, triggering the pipefile
+      rm -rf $home/{,.[!.],..?}*
+
+      printf '**********************\n'
+      printf '* Create Python venv *\n'
+      printf '**********************\n'
+
+      python -m venv --system-site-packages --copies $home/$venvName
+
+    - |
+      #!/bin/bash
+      if [[ $stepRunnerUpdateLibrary =~ true|True ]]; then
+        printf '
+        *********************\n
+        * Update Python Pip *\n
+        *********************\n';
+        source $home/$venvName/bin/activate;
+        python -m pip install --upgrade pip;
+        if [[ ${stepRunnerLibSourceUrl} ]]; then
+          STEP_RUNNER_LIB_INSTALL_CMD="python -m pip install --upgrade $stepRunnerLibSourceUrl";
+        else
+          indexUrlFlag="";
+          if [[ $stepRunnerLibIndexUrl ]]; then
+            indexUrlFlag="--index-url $stepRunnerLibIndexUrl";
+          fi;
+          extraIndexUrlFlag="";
+          if [[ $stepRunnerLibExtraIndexUrl ]]; then
+            extraIndexUrlFlag="--extra-index-url  $stepRunnerLibExtraIndexUrl";
+          fi;
+          STEP_RUNNER_LIB_INSTALL_CMD="python -m pip install --upgrade ${indexUrlFlag} ${extraIndexUrlFlag} $stepRunnerPackageName";
+          if [[ $stepRunnerLibVersion ]]; then
+            STEP_RUNNER_LIB_INSTALL_CMD+="==$stepRunnerLibVersion";
+          fi;
+        fi;
+        printf '
+        *************************************\n
+        * Update Step Runner Python Package *\n
+        *************************************\n';
+        ${STEP_RUNNER_LIB_INSTALL_CMD};
+      else
+        printf 'Using pre-installed Workflow Step Runner library\n';
+      fi
+
+      printf '
+      ****************************************************\n
+      * Installed Step Runner Python Package Information *\n
+      ****************************************************\n'
+
+      python -m pip show $stepRunnerPackageName

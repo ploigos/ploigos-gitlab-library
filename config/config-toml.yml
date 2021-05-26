@@ -1,0 +1,111 @@
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: gitlab-runner-ploigos-config-toml
+data:
+  ## See: https://docs.gitlab.com/runner/executors/kubernetes.html
+  config.toml: |
+    ## TODO: Can we have concurrency right now, given the hard-coded volume names?
+    #concurrent = 4
+
+    [[runners]]
+      executor = "kubernetes"
+
+      [runners.custom_build_dir]
+        enabled = true
+
+      [runners.kubernetes]
+        ## TODO: Is this correct, or should be "always"?
+        pull_policy = "if-not-present"
+
+        # Namespace to run Kubernetes jobs in.
+        namespace = "gitlab-runner"
+
+        #namespace_overwrite_allowed = "ci-.*"
+
+        #bearer_token_overwrite_allowed = true
+
+        # Default Docker image to use for jobs when none is specified.
+        image = "ploigos/ploigos-base:latest"
+
+        # A list of secrets that are used to authenticate Docker image pulling.
+        #image_pull_secrets = ["docker-registry-credentials"]
+
+        [runners.kubernetes.pod_security_context]
+          run_as_non_root = true
+          run_as_user = 1001
+          # NOTE: fs_group is not defaulting to 0; this must be done explicitly
+          fs_group = 0
+
+        #[runners.kubernetes.node_selector]
+        #  gitlab = "true"
+
+        #cpu_limit = "1"
+        #memory_limit = "1Gi"
+        #service_cpu_limit = "1"
+        #service_memory_limit = "1Gi"
+        #helper_cpu_limit = "500m"
+        #helper_memory_limit = "100Mi"
+        poll_interval = 5
+        poll_timeout = 3600
+
+        ## Node Scheduling ##
+
+        #[runners.kubernetes.node_selector]
+        #  gitlab = "true"
+
+        #[runners.kubernetes.node_tolerations]
+        #  "node-role.kubernetes.io/master" = "NoSchedule"
+        #  "custom.toleration=value" = "NoSchedule"
+        #  "empty.value=" = "PreferNoSchedule"
+        #  "onlyKey" = ""
+
+        ## Volumes ##
+
+        ## TODO: Do we need something besides the home dir? Until proven otherwise, using the larger PVC (below)!
+        [[runners.kubernetes.volumes.pvc]]
+          name = "gitlab-ci-pvc"
+          mount_path = "/home/ploigos"
+
+        #########################################################################################
+        ## TODO:
+        ##
+        ## THE FOLLOWING IS NEEDED, BUT CANNOT BE UNCOMMENTED W/O GITLAB RUNNER 13.12 OR LATER!!!
+        #########################################################################################
+
+        #[[runners.kubernetes.volumes.pvc]]
+        #  name = "gitlab-ci-build-pvc"
+        #  mount_path = "/builds"
+
+        [[runners.kubernetes.volumes.secret]]
+          name = "pgp-keys-ploigos-workflow-ref-quarkus-mvn-gitlab-std-fruit"
+          mount_path = "/var/pgp-private-keys"
+
+        #[[runners.kubernetes.volumes.config_map]]
+        #  name = "trusted-ca"
+        #  mount_path = "/etc/pki/ca-trust/source/anchors"
+        #  read_only = true
+        #  [runners.kubernetes.volumes.config_map.items]
+        #    "key" = "ca-bundle.crt"
+        #    "path" = "tls-ca-bundle.pem"
+
+        ## TODO: Can we define /opt/platform-config as a var somewhere in the toml?
+        ## TODO: Need the following two to occur only when separatePlatformConfig == true
+
+        #[[runners.kubernetes.volumes.config_map]]
+        #  name = "ploigos-platform-config"
+        #  mount_path = "/opt/platform-config/config.yml"
+        #  sub_path = "config.yml"
+
+        #[[runners.kubernetes.volumes.secret]]
+        #  name = "ploigos-platform-config-secrets"
+        #  mount_path = "/opt/platform-config/config-secrets.yml"
+        #  sub_path = "config-secrets.yml"
+
+## TODO: Other vars in the Tekton CI script, that may or may not need to be translated here:
+
+## This flag also adds two workspaces to the pipeline template:
+## - ploigos-platform-config: for mounting a ConfigMap
+## - ploigos-platform-config-secrets: for mounting a Secret
+#separatePlatformConfig: false
+

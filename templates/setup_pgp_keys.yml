@@ -1,0 +1,30 @@
+# Variables that must be defined when importing script:
+#   - workflowWorkerImageDefault
+#   - venvName
+#   - verbose
+.setup_pgp_keys:
+  # Do not build tags, or the tag source step will rerun the pipeline
+  rules:
+    - if: $CI_COMMIT_TAG
+      when: never
+    - when: on_success
+  tags:
+    - ploigos
+  script:
+    # TODO: per other scripts, do we need to ensure that values like 'TRUE', 'YES', 'N', 'F', etc. are acceptable?
+    - |
+      #!/bin/bash
+
+      if [ "$verbose" == "true" ]; then
+        set -x;
+      else
+        set +x;
+      fi
+
+      set -eu -o pipefail
+
+      printf "*******************\n"
+      printf "* Import PGP Keys *\n"
+      printf "*******************\n"
+
+      gpg --import /var/pgp-private-keys/*

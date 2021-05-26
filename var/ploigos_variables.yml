@@ -1,0 +1,209 @@
+variables:
+  verbose: 'false'
+  # type: string
+  # description: log any *sh commands used during execution
+
+  appRepoUrl: ''
+  # type: string
+  # description: URL to the application repository to run the pipeline for.
+
+  appRepoRef: ''
+  # type: string
+  # description: Git reference (tag, branch) of the application repository to run the pipeline for.
+
+  appCloneSSLVerify: 'true'
+  # type: string
+  # description: Passed to git-clone ClusterTask.
+  #              Defines if http.sslVerify should be set to true or false in the global git config
+
+  stepRunnerConfigDir: ''
+  # type: string
+  # description: Path to the Step Runner configuration to pass to the
+  #              Workflow Step Runner when running workflow steps.
+
+  pgpKeysSecretName: ''
+  # type: string
+  # description: Name of the Kubernetes Secret containing the PGP private keys to import for use by
+  #              SOPS to decrypt encrypted Step Runner config.
+
+  envNameDev: 'DEV'
+  # type: string
+  # description: Name of the "Development" environment used in the Step Runner configuration
+  #              files and to pass to the Workflow Step Runner when running a step targeted to
+  #              the "Development" environment.
+
+  envNameTest: 'TEST'
+  # type: string
+  # description: Name of the "Test" environment used in the Step Runner configuration
+  #              files and to pass to the Workflow Step Runner when running a step targeted to
+  #              the "Test" environment.
+
+  envNameProd: 'PROD'
+  # type: string
+  # description: Name of the "Production" environment used in the Step Runner configuration
+  #              files and to pass to the Workflow Step Runner when running a step targeted to
+  #              the "Production" environment.
+
+  ciOnlyGitRefPatterns: '^$'
+  # type: string
+  # description: Regex pattern for git references that should only go through the
+  #              Continuous Integration (CI) workflow.
+
+  ## TODO: Determine if the / below needs to be escaped, once regex vars can be used
+  devGitRefPatterns: '^feature/.+$|^PR-.+$'
+  # type: string
+  # description: Regex pattern for git references that should go through the
+  #              Continuous Integration (CI) workflow and then the deployment to
+  #              "Development" environment(s) (IE: "DEV" environment) workflow.
+
+  ## END LIST OF FAILED SCENARIOS ##
+
+  releaseGitRefPatterns: '^main$'
+  # type: string
+  # description: Regex pattern for git references that should go through the
+  #              Continues Integration (CI) workflow and then the deployment to
+  #              "Release" environment(s) (IE: "TEST" and then "PROD" environments) workflow.
+
+  stepRunnerPackageName: 'ploigos-step-runner'
+  # type: string
+  # description: Name of the python package to use as the Workflow Step Runner.
+
+  stepRunnerUpdateLibrary: 'false'
+  # type: string
+  # description: If 'true', then pull the Workflow Step Runner library source code and build it.
+  #              If 'false', use the version of the Workflow Step Runner library that is
+  #              pre-installed in the CI worker images.
+  #
+  #              If 'false' then the following parameters are ignored:
+  #                - 'stepRunnerLibSourceUrl'
+  #                - 'stepRunnerLibIndexUrl'
+  #                - 'stepRunnerLibExtraIndexUrl'
+  #                - 'stepRunnerLibVersion'
+
+  stepRunnerLibIndexUrl: 'https://pypi.org/simple/'
+  # type: string
+  # description: If 'stepRunnerUpdateLibrary' is true and 'stepRunnerLibSourceUrl' is not supplied
+  #              then this will be passed to pip as '--index-url' for installing the Workflow Step
+  #              Runner library and its dependencies.
+  #
+  #              NOTE
+  #              ----
+  #              PIP is indeterminate whether it will pull packages from '--index-url' or
+  #              '--extra-index-url', therefor be sure to specify 'stepRunnerLibVersion'
+  #              if trying to pull a specific version from a specific index.
+  #
+  #              SEE
+  #              ---
+  #              - https://pip.pypa.io/en/stable/reference/pip_install/#id48
+
+  stepRunnerLibExtraIndexUrl: 'https://pypi.org/simple/'
+  # type: string
+  # description: If 'stepRunnerUpdateLibrary' is true and 'stepRunnerLibSourceUrl' is not supplied
+  #              then this will be passed to pip as '--extra-index-url' for installing the Workflow
+  #              Step Runner library and its dependencies.
+  #
+  #              NOTE
+  #              ----
+  #              PIP is indeterminate whether it will pull packages from '--index-url' or
+  #              '--extra-index-url', therefor be sure to specify 'stepRunnerLibVersion'
+  #               if trying to pull a specific version from a specific index.
+  #
+  #              SEE
+  #              ---
+  #              - https://pip.pypa.io/en/stable/reference/pip_install/#id48
+
+  stepRunnerLibVersion: ''
+  # type: string
+  # description: If 'stepRunnerUpdateLibrary' is true and 'stepRunnerLibSourceUrl' is not supplied
+  #              then this will be passed to pip as as the version of the Workflow Step Runner
+  #              library to install.
+  #
+  #              NOTE
+  #              ----
+  #              If not given pip will install the latest from either 'stepRunnerLibIndexUrl' or
+  #              'stepRunnerLibExtraIndexUrl' indeterminately.
+
+  stepRunnerLibSourceUrl: ''
+  # type: string
+  # description: If none empty value given and 'stepRunnerUpdateLibrary' is true this will be used
+  #              as the source location to install the Workflow Step Runner library from rather
+  #              than from a PEP 503 compliant repository.
+  #
+  #              If given then the following parameters are ignored:
+  #                - 'stepRunnerLibIndexUrl'
+  #                - 'stepRunnerLibExtraIndexUrl'
+  #                - 'stepRunnerLibVersion'
+  #
+  #              EXAMPLES
+  #              --------
+  #              git+https://github.com/ploigos/ploigos-step-runner.git@feature/NAPSSPO-1018
+  #              installs from the public 'ploigos' fork from the 'feature/NAPSSPO-1018' branch.
+  #
+  #              git+https://gitea.internal.example.xyz/tools/ploigos-step-runner.git@main
+  #              installs from an internal fork of the step runner library from the 'main' branch.
+
+  workflowWorkersImagePullPolicy: 'IfNotPresent'
+  # type: string
+  # description: Policy for pulling new versions of the imageTag for the CI worker images
+  #              when running this pipeline.
+
+  workflowWorkerImageDefault: 'ploigos/ploigos-base:latest'
+  # type: string
+  # description: Container image to use when creating a workflow worker
+  #              to run pipeline steps when no other specific container image has been
+  #              specified for that step.
+
+  workflowWorkerImageSourceClone: 'gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.12.1'
+  # type: string
+  # description: Container image to use when creating a workflow worker
+  #              to run pipeline steps when performing source clone step(s).
+
+  workflowWorkerImageUnitTest: ''
+  # type: string
+  # description: Container image to use when creating a workflow worker
+  #              to run pipeline steps when performing unit test step(s).
+
+  workflowWorkerImagePackage: ''
+  # type: string
+  # description: Container image to use when creating a workflow worker
+  #              to run pipeline steps when performing package application step(s).
+
+  workflowWorkerImageStaticCodeAnalysis: 'ploigos/ploigos-tool-sonar:latest'
+  # type: string
+  # description: Container image to use when creating a workflow worker
+  #              to run pipeline steps when performing static code analysis step(s).
+
+  workflowWorkerImagePushArtifacts: ''
+  # type: string
+  # description: Container image to use when creating a workflow worker to run pipeline
+  #              steps when performing push push packaged artifacts step(s).
+
+  workflowWorkerImageContainerOperations: 'ploigos/ploigos-tool-containers:latest'
+  # type: string
+  # description: Container image to use when creating a workflow worker to run pipeline
+  #              steps when performing container operations (build/push/etc) step(s).
+
+  workflowWorkerImageContainerImageStaticComplianceScan: 'ploigos/ploigos-tool-openscap:latest'
+  # type: string
+  # description: Container image to use when creating a workflow worker to run pipeline
+  #              steps when performing container image static compliance scan step(s).
+
+  workflowWorkerImageContainerImageStaticVulnerabilityScan: 'ploigos/ploigos-tool-openscap:latest'
+  # type: string
+  # description: Container image to use when creating a workflow worker to run pipeline steps
+  #              when performing container image static vulnerability scan step(s).
+
+  workflowWorkerImageDeploy: 'ploigos/ploigos-tool-argocd:latest'
+  # type: string
+  # description: Container image to use when creating a workflow worker
+  #              to run pipeline steps when performing deploy step(s).
+
+  workflowWorkerImageValidateEnvironmentConfiguration: 'ploigos/ploigos-tool-config-lint:latest'
+  # type: string
+  # description: Container image to use when creating a workflow worker to run pipeline
+  #              steps when performing validate environment configuration step(s).
+
+  workflowWorkerImageUAT: ''
+  # type: string
+  # description: Container image to use when creating a workflow worker to run pipeline
+  #              steps when performing user acceptance tests (UAT) step(s).
