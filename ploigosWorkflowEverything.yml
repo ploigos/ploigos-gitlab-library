@@ -41,7 +41,8 @@ stages:
   - ci:static_code_analysis
   - ci:push_application
   - ci:create_container_image
-  - ci:static_image_scan
+  - ci:static_image_scan_vulnerability
+  - ci:static_image_scan_compliance
   - ci:push_container
   - ci:sign_container
   - ci:generate_evidence
@@ -165,25 +166,25 @@ create_container_image:
   variables:
     stepName: 'create-container-image'
 
-static_image_scan:compliance:
-  extends:
-    - .ploigos_step_runner
-  stage: ci:static_image_scan
-  dependencies:
-    - create_container_image
-  image: '$workflowWorkerImageContainerImageStaticComplianceScan'
-  variables:
-    stepName: 'container-image-static-compliance-scan'
-
 static_image_scan:vulnerability:
   extends:
     - .ploigos_step_runner
-  stage: ci:static_image_scan
+  stage: ci:static_image_scan_vulnerability
   dependencies:
     - create_container_image
   image: '$workflowWorkerImageContainerImageStaticVulnerabilityScan'
   variables:
     stepName: 'container-image-static-vulnerability-scan'
+
+static_image_scan:compliance:
+  extends:
+    - .ploigos_step_runner
+  stage: ci:static_image_scan_compliance
+  dependencies:
+    - static_image_scan:vulnerability
+  image: '$workflowWorkerImageContainerImageStaticComplianceScan'
+  variables:
+    stepName: 'container-image-static-compliance-scan'
 
 push_container:
   extends:
