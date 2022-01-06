@@ -1,6 +1,6 @@
-###########################################
-## Ploigos GitLab CI Workflow - Standard ##
-###########################################
+#############################################
+## Ploigos GitLab CI Workflow - Everything ##
+#############################################
 
 # Do not build tags, or the tag source step will rerun the pipeline
 workflow:
