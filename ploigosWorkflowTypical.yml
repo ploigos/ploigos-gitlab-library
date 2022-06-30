@@ -20,13 +20,13 @@ include:
   #  - remote: '$remote_url/-/raw/$gitlabLibraryVersion/var/ploigos_variables.yml'
 
   # Ploigos + GitLab Runner variable setup
-  - remote: 'https://gitlab.apps.tssc.rht-set.com/ploigos/ploigos-gitlab-library/-/raw/main/var/ploigos_variables.yml'
-  - remote: 'https://gitlab.apps.tssc.rht-set.com/ploigos/ploigos-gitlab-library/-/raw/main/var/ploigos_gitlab_variables.yml'
+  - remote: 'https://raw.githubusercontent.com/ploigos/ploigos-gitlab-library/main/var/ploigos_variables.yml'
+  - remote: 'https://raw.githubusercontent.com/ploigos/ploigos-gitlab-library/main/main/var/ploigos_gitlab_variables.yml'
 
   # Templates
-  - remote: 'https://gitlab.apps.tssc.rht-set.com/ploigos/ploigos-gitlab-library/-/raw/main/templates/ploigos_step_runner.yml'
-  - remote: 'https://gitlab.apps.tssc.rht-set.com/ploigos/ploigos-gitlab-library/-/raw/main/templates/setup_workflow_step_runner.yml'
-  - remote: 'https://gitlab.apps.tssc.rht-set.com/ploigos/ploigos-gitlab-library/-/raw/main/templates/setup_pgp_keys.yml'
+  - remote: 'https://raw.githubusercontent.com/ploigos/ploigos-gitlab-library/main/templates/ploigos_step_runner.yml'
+  - remote: 'https://raw.githubusercontent.com/ploigos/ploigos-gitlab-library/main/templates/setup_workflow_step_runner.yml'
+  - remote: 'https://raw.githubusercontent.com/ploigos/ploigos-gitlab-library/main/templates/setup_pgp_keys.yml'
 
 # These stages come from the includes above
 stages:
