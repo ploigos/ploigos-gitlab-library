@@ -21,7 +21,7 @@ include:
 
   # Ploigos + GitLab Runner variable setup
   - remote: 'https://raw.githubusercontent.com/ploigos/ploigos-gitlab-library/main/var/ploigos_variables.yml'
-  - remote: 'https://raw.githubusercontent.com/ploigos/ploigos-gitlab-library/main/main/var/ploigos_gitlab_variables.yml'
+  - remote: 'https://raw.githubusercontent.com/ploigos/ploigos-gitlab-library/main/var/ploigos_gitlab_variables.yml'
 
   # Templates
   - remote: 'https://raw.githubusercontent.com/ploigos/ploigos-gitlab-library/main/templates/ploigos_step_runner.yml'
